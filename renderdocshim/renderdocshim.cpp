@@ -36,8 +36,59 @@
 
 struct CaptureOptions;
 typedef void(__cdecl *pINTERNAL_SetCaptureOptions)(const CaptureOptions *opts);
-typedef void(__cdecl *pINTERNAL_SetLogFile)(const char *logfile);
+typedef void(__cdecl *pINTERNAL_SetCaptureFile)(const char *logfile);
 typedef void(__cdecl *pINTERNAL_SetDebugLogFile)(const char *logfile);
+
+static DWORD StringLength(const char *text)
+{
+  DWORD length = 0;
+  while(text[length])
+    length++;
+  return length;
+}
+
+static void AppendDiagnosticLog(const ShimData *data, const char *text)
+{
+  if(data == NULL || data->debuglog[0] == 0)
+    return;
+
+  wchar_t *logpath = (wchar_t *)VirtualAlloc(NULL, 2048 * sizeof(wchar_t),
+                                             MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
+  if(logpath == NULL)
+    return;
+
+  logpath[0] = 0;
+  if(MultiByteToWideChar(CP_UTF8, 0, data->debuglog, -1, logpath, 2048) == 0)
+  {
+    VirtualFree(logpath, 0, MEM_RELEASE);
+    return;
+  }
+
+  HANDLE logfile = CreateFileW(logpath, FILE_APPEND_DATA,
+                               FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL,
+                               OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+  if(logfile == INVALID_HANDLE_VALUE)
+  {
+    VirtualFree(logpath, 0, MEM_RELEASE);
+    return;
+  }
+
+  DWORD written = 0;
+  WriteFile(logfile, text, StringLength(text), &written, NULL);
+  FlushFileBuffers(logfile);
+  CloseHandle(logfile);
+  VirtualFree(logpath, 0, MEM_RELEASE);
+}
+
+static void AppendError(const ShimData *data, DWORD error)
+{
+  char errorText[512];
+  errorText[0] = 0;
+  DWORD length = FormatMessageA(FORMAT_MESSAGE_FROM_SYSTEM | FORMAT_MESSAGE_IGNORE_INSERTS, NULL,
+                                error, 0, errorText, 511, NULL);
+  if(length > 0)
+    AppendDiagnosticLog(data, errorText);
+}
 
 #if defined(RELEASE)
 #define LOGPRINT(txt) \
@@ -104,31 +155,42 @@ void CheckHook()
 
     if(find >= 0)
     {
+      AppendDiagnosticLog(data, "[ZZZDocGlobalHook][shim] stage=path_matched\r\n");
       LOGPRINT(L"renderdocshim: Hooking into '");
       LOGPRINT(exepath);
       LOGPRINT(L"', based on '");
       LOGPRINT(data->pathmatchstring);
       LOGPRINT(L"'\n");
 
+      AppendDiagnosticLog(data, "[ZZZDocGlobalHook][shim] stage=load_core_begin\r\n");
       HMODULE mod = LoadLibraryW(data->rdocpath);
 
       if(mod)
       {
+        AppendDiagnosticLog(data, "[ZZZDocGlobalHook][shim] stage=load_core_success\r\n");
         pINTERNAL_SetCaptureOptions setopts =
             (pINTERNAL_SetCaptureOptions)GetProcAddress(mod, "INTERNAL_SetCaptureOptions");
-        pINTERNAL_SetLogFile setlogfile =
-            (pINTERNAL_SetLogFile)GetProcAddress(mod, "INTERNAL_SetLogFile");
+        pINTERNAL_SetCaptureFile setcapturefile =
+            (pINTERNAL_SetCaptureFile)GetProcAddress(mod, "INTERNAL_SetCaptureFile");
         pINTERNAL_SetDebugLogFile setdebuglog =
             (pINTERNAL_SetDebugLogFile)GetProcAddress(mod, "INTERNAL_SetDebugLogFile");
 
         if(setopts)
           setopts((const CaptureOptions *)data->opts);
 
-        if(setlogfile && data->capfile[0])
-          setlogfile(data->capfile);
+        if(setcapturefile && data->capfile[0])
+          setcapturefile(data->capfile);
 
         if(setdebuglog && data->debuglog[0])
           setdebuglog(data->debuglog);
+
+        AppendDiagnosticLog(data, "[ZZZDocGlobalHook][shim] stage=configuration_applied\r\n");
+      }
+      else
+      {
+        DWORD loadError = GetLastError();
+        AppendDiagnosticLog(data, "[ZZZDocGlobalHook][shim] stage=load_core_failed error=");
+        AppendError(data, loadError);
       }
     }
     else

@@ -43,6 +43,7 @@
   <Import Project="$(SolutionDir)\util\WindowsSDKFix.props" />
   <PropertyGroup>
     <OutDir>$(SolutionDir)$(Platform)\$(Configuration)\</OutDir>
+    <TargetName>zzzdoc</TargetName>
   </PropertyGroup>
   <PropertyGroup>
     <IntDir>$(SolutionDir)$(Platform)\$(Configuration)\obj\$(ProjectName)\</IntDir>
@@ -67,7 +68,7 @@
       <MinimalRebuild>false</MinimalRebuild>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <AdditionalIncludeDirectories>$(SolutionDir)renderdoc\;$(SolutionDir)renderdoc\3rdparty\</AdditionalIncludeDirectories>
-      <PreprocessorDefinitions>RDOC_BASE_NAME=$(ProjectName);RENDERDOC_EXPORTS;RENDERDOC_PLATFORM_WIN32;WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>RDOC_BASE_NAME=zzzdoc;RENDERDOC_EXPORTS;RENDERDOC_PLATFORM_WIN32;WIN32;NDEBUG;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <WarningLevel>Level4</WarningLevel>
       <TreatWarningAsError>true</TreatWarningAsError>
       <DisableSpecificWarnings>4100</DisableSpecificWarnings>
@@ -81,6 +82,8 @@
       <AdditionalDependencies>ws2_32.lib;kernel32.lib;user32.lib;shlwapi.lib;setupapi.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <ModuleDefinitionFile>$(ProjectDir)os\win32\comexport.def</ModuleDefinitionFile>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <ImportLibrary>$(OutDir)lib\core\zzzdoc.lib</ImportLibrary>
+      <ProgramDatabaseFile>$(OutDir)symbols\core\zzzdoc.pdb</ProgramDatabaseFile>
     </Link>
     <ProjectReference>
       <UseLibraryDependencyInputs>true</UseLibraryDependencyInputs>
@@ -852,12 +855,12 @@ namespace DXCEnumerateAndCheck {
     <Message Text="Processing layer JSON file for RenderDoc $(MajorVersion).$(MinorVersion)" Importance="High" />
     <!-- Read the template json, replace the major/minor versions -->
     <PropertyGroup>
-      <VulkanLayerName>VK_LAYER_$(ProjectName.ToUpper())_Capture</VulkanLayerName>
-      <VulkanEnableVar>ENABLE_VULKAN_$(ProjectName)_CAPTURE</VulkanEnableVar>
-      <JSONContents>$([System.IO.File]::ReadAllText('$(SolutionDir)renderdoc/driver/vulkan/renderdoc.json').Replace('@RENDERDOC_VERSION_MAJOR@', '$(MajorVersion)').Replace('@RENDERDOC_VERSION_MINOR@', '$(MinorVersion)').Replace('@VULKAN_LAYER_MODULE_PATH@', '.\\$(ProjectName).dll').Replace('@VULKAN_LAYER_NAME@', $(VulkanLayerName)).Replace('@VULKAN_ENABLE_VAR@', $(VulkanEnableVar.ToUpper())))</JSONContents>
+      <VulkanLayerName>VK_LAYER_ZZZDOC_Capture</VulkanLayerName>
+      <VulkanEnableVar>ENABLE_VULKAN_ZZZDOC_CAPTURE</VulkanEnableVar>
+      <JSONContents>$([System.IO.File]::ReadAllText('$(SolutionDir)renderdoc/driver/vulkan/renderdoc.json').Replace('@RENDERDOC_VERSION_MAJOR@', '$(MajorVersion)').Replace('@RENDERDOC_VERSION_MINOR@', '$(MinorVersion)').Replace('@VULKAN_LAYER_MODULE_PATH@', '.\\zzzdoc.dll').Replace('@VULKAN_LAYER_NAME@', $(VulkanLayerName)).Replace('@VULKAN_ENABLE_VAR@', $(VulkanEnableVar)).Replace('Debugging capture layer for RenderDoc', 'Debugging capture layer for ZZZDoc').Replace('DISABLE_VULKAN_RENDERDOC_CAPTURE_', 'DISABLE_VULKAN_ZZZDOC_CAPTURE_'))</JSONContents>
     </PropertyGroup>
     <!-- Write it out to the output directory -->
-    <WriteLinesToFile File="$(OutDir)$(ProjectName).json" Lines="$(JSONContents)" Overwrite="true" />
+    <WriteLinesToFile File="$(OutDir)zzzdoc.json" Lines="$(JSONContents)" Overwrite="true" />
   </Target>
   <ItemGroup>
     <ProjectReference Include="driver\d3d11\renderdoc_d3d11.vcxproj">
@@ -904,6 +907,9 @@ namespace DXCEnumerateAndCheck {
     </Content>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <Target Name="CreateZZZDocLinkDirectories" BeforeTargets="Link">
+    <MakeDir Directories="$(OutDir)lib\core;$(OutDir)symbols\core" />
+  </Target>
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
   <Target Name="AfterBuild" AfterTargets="Build">

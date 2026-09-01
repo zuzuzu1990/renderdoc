@@ -523,9 +523,9 @@ void RenderDoc::RecreateCrashHandler()
   FileIO::GetExecutableFilename(exename);
   exename = strlower(exename);
 
-  // only create crash handler when we're not in renderdoccmd (to prevent infinite loop as
-  // the crash handler itself launches renderdoccmd)
-  if(exename.contains("renderdoccmd"))
+  // only create crash handler when we're not in zzzdoccmd (to prevent infinite loop as
+  // the crash handler itself launches zzzdoccmd)
+  if(exename.contains("zzzdoccmd"))
     return;
 
 #if ENABLED(RDOC_WIN32)

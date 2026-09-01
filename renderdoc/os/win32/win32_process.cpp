@@ -1379,7 +1379,7 @@ RDResult BackupAndChangeRegistry(GlobalHookData &hookdata, const rdcstr &shimpat
   // write it to disk but don't fail if we can't, just print it to the log and keep going.
   wchar_t reg_backup[MAX_PATH];
   GetTempPathW(MAX_PATH, reg_backup);
-  wcscat_s(reg_backup, L"RenderDoc_RestoreGlobalHook.reg");
+  wcscat_s(reg_backup, L"ZZZDoc_RestoreGlobalHook.reg");
 
   FILE *f = NULL;
   _wfopen_s(&f, reg_backup, L"w");
@@ -1497,8 +1497,8 @@ RDResult Process::StartGlobalHook(const rdcstr &pathmatch, const rdcstr &capture
 
   renderdocPath = get_dirname(renderdocPath);
 
-  // the native renderdoccmd.exe is always next to the dll. Wow32 will be somewhere else
-  rdcstr cmdpathNative = renderdocPath + "\\renderdoccmd.exe";
+  // the native ZZZDoc command-line helper is always next to the dll. Wow32 will be elsewhere.
+  rdcstr cmdpathNative = renderdocPath + "\\zzzdoccmd.exe";
   rdcstr cmdpathWow32;
 
   rdcstr shimpathNative = renderdocPath;
@@ -1506,8 +1506,8 @@ RDResult Process::StartGlobalHook(const rdcstr &pathmatch, const rdcstr &capture
 
 #if ENABLED(RDOC_X64)
 
-  // native shim is just renderdocshim64.dll
-  shimpathNative = renderdocPath + "\\renderdocshim64.dll";
+  // native shim is the ZZZDoc x64 global-hook bootstrap.
+  shimpathNative = renderdocPath + "\\zzzdocs64.dll";
 
   // if it looks like we're in the development environment, look for the alternate bitness in the
   // corresponding folder
@@ -1537,6 +1537,15 @@ RDResult Process::StartGlobalHook(const rdcstr &pathmatch, const rdcstr &capture
   {
     shimpathWow32 = renderdocPath + "\\x86\\renderdocshim32.dll";
     cmdpathWow32 = renderdocPath + "\\x86\\renderdoccmd.exe";
+  }
+
+  // This internal build only ships x64 binaries. Keep Wow32 support when a matching pair is
+  // available, but don't fail the native global hook when the optional x86 tools are absent.
+  if(!FileIO::exists(shimpathWow32) || !FileIO::exists(cmdpathWow32))
+  {
+    RDCWARN("32-bit global hook helpers are unavailable; enabling the x64 global hook only");
+    shimpathWow32.clear();
+    cmdpathWow32.clear();
   }
 
 #else
@@ -1641,62 +1650,65 @@ RDResult Process::StartGlobalHook(const rdcstr &pathmatch, const rdcstr &capture
 
 // repeat the process for the Wow32 renderdoccmd
 #if ENABLED(RDOC_X64)
-  params = StringFormat::Fmt(
-      "\"%s\" globalhook --match \"%s\" --capfile \"%s\" --debuglog \"%s\" --capopts \"%s\"",
-      cmdpathWow32.c_str(), pathmatch.c_str(), capturefile.c_str(), debugLogfile.c_str(),
-      optstr.c_str());
-
-  paramsAlloc = StringFormat::UTF82Wide(params);
-
+  if(!cmdpathWow32.empty())
   {
-    SECURITY_ATTRIBUTES pipeSec;
-    pipeSec.nLength = sizeof(SECURITY_ATTRIBUTES);
-    pipeSec.bInheritHandle = TRUE;
-    pipeSec.lpSecurityDescriptor = NULL;
+    params = StringFormat::Fmt(
+        "\"%s\" globalhook --match \"%s\" --capfile \"%s\" --debuglog \"%s\" --capopts \"%s\"",
+        cmdpathWow32.c_str(), pathmatch.c_str(), capturefile.c_str(), debugLogfile.c_str(),
+        optstr.c_str());
 
-    BOOL res;
-    res = CreatePipe(&childEnd, &hookdata.dataWow32.pipe, &pipeSec, 0);
+    paramsAlloc = StringFormat::UTF82Wide(params);
 
-    if(!res)
     {
-      err = GetLastError();
-      RestoreRegistry(hookdata);
-      RETURN_ERROR_RESULT(ResultCode::InternalError, "Could not create 64-bit stdin pipe (err %u)",
-                          err);
+      SECURITY_ATTRIBUTES pipeSec;
+      pipeSec.nLength = sizeof(SECURITY_ATTRIBUTES);
+      pipeSec.bInheritHandle = TRUE;
+      pipeSec.lpSecurityDescriptor = NULL;
+
+      BOOL res;
+      res = CreatePipe(&childEnd, &hookdata.dataWow32.pipe, &pipeSec, 0);
+
+      if(!res)
+      {
+        err = GetLastError();
+        RestoreRegistry(hookdata);
+        RETURN_ERROR_RESULT(ResultCode::InternalError,
+                            "Could not create 64-bit stdin pipe (err %u)", err);
+      }
+
+      res = SetHandleInformation(hookdata.dataWow32.pipe, HANDLE_FLAG_INHERIT, 0);
+
+      if(!res)
+      {
+        err = GetLastError();
+        RestoreRegistry(hookdata);
+        RETURN_ERROR_RESULT(ResultCode::InternalError,
+                            "Could not make 64-bit stdin pipe inheritable (err %u)", err);
+      }
+
+      si.hStdInput = childEnd;
     }
 
-    res = SetHandleInformation(hookdata.dataWow32.pipe, HANDLE_FLAG_INHERIT, 0);
+    retValue = CreateProcessW(NULL, &paramsAlloc[0], &pSec, &tSec, true, CREATE_NEW_CONSOLE, NULL,
+                              NULL, &si, &pi);
 
-    if(!res)
+    err = GetLastError();
+
+    // we don't need this end anymore
+    CloseHandle(childEnd);
+
+    if(retValue == FALSE)
     {
-      err = GetLastError();
+      CloseHandle(hookdata.dataNative.pipe);
+      CloseHandle(hookdata.dataWow32.pipe);
       RestoreRegistry(hookdata);
-      RETURN_ERROR_RESULT(ResultCode::InternalError,
-                          "Could not make 64-bit stdin pipe inheritable (err %u)", err);
+      RETURN_ERROR_RESULT(ResultCode::InternalError, "Can't launch renderdoccmd from '%s' (err %u)",
+                          cmdpathWow32.c_str(), err);
     }
 
-    si.hStdInput = childEnd;
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
   }
-
-  retValue = CreateProcessW(NULL, &paramsAlloc[0], &pSec, &tSec, true, CREATE_NEW_CONSOLE, NULL,
-                            NULL, &si, &pi);
-
-  err = GetLastError();
-
-  // we don't need this end anymore
-  CloseHandle(childEnd);
-
-  if(retValue == FALSE)
-  {
-    CloseHandle(hookdata.dataNative.pipe);
-    CloseHandle(hookdata.dataWow32.pipe);
-    RestoreRegistry(hookdata);
-    RETURN_ERROR_RESULT(ResultCode::InternalError, "Can't launch renderdoccmd from '%s' (err %u)",
-                        cmdpathWow32.c_str(), err);
-  }
-
-  CloseHandle(pi.hThread);
-  CloseHandle(pi.hProcess);
 #endif
 
   // set static global pointer with our data, and launch the thread

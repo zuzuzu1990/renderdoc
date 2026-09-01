@@ -39,12 +39,21 @@ LibraryHook::LibraryHook()
 
 void LibraryHooks::RegisterHooks()
 {
+  RDCLOG("[ZZZDocGlobalHook] stage=register_hooks_begin count=%llu",
+         (unsigned long long)LibList().size());
   BeginHookRegistration();
 
-  for(LibraryHook *lib : LibList())
+  for(size_t i = 0; i < LibList().size(); i++)
+  {
+    RDCLOG("[ZZZDocGlobalHook] stage=register_hook_begin index=%llu",
+           (unsigned long long)i);
+    LibraryHook *lib = LibList()[i];
     lib->RegisterHooks();
+    RDCLOG("[ZZZDocGlobalHook] stage=register_hook_end index=%llu", (unsigned long long)i);
+  }
 
   EndHookRegistration();
+  RDCLOG("[ZZZDocGlobalHook] stage=register_hooks_complete");
 }
 
 void LibraryHooks::RemoveHookCallbacks()

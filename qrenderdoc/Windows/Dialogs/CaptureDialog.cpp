@@ -1131,7 +1131,7 @@ void CaptureDialog::UpdateGlobalHook()
     QString text = tr("Global hooking is risky!\nBe sure you know what you're doing.");
 
     if(ui->toggleGlobal->isChecked())
-      text += tr("\nEmergency restore @ %TEMP%\\RenderDoc_RestoreGlobalHook.reg");
+      text += tr("\nEmergency restore @ %TEMP%\\ZZZDoc_RestoreGlobalHook.reg");
 
     ui->globalLabel->setText(text);
   }

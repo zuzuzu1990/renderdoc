@@ -286,7 +286,7 @@ rdcstr GetReplayAppFilename()
 
   rdcstr path = StringFormat::Wide2UTF8(curFile);
   path = get_dirname(path);
-  rdcstr exe = path + "/qrenderdoc.exe";
+  rdcstr exe = path + "/zzzdoc.exe";
 
   FILE *f = FileIO::fopen(exe, FileIO::ReadBinary);
   if(f)
@@ -295,9 +295,9 @@ rdcstr GetReplayAppFilename()
     return exe;
   }
 
-  // if qrenderdoc.exe doesn't live in the same dir, we must be in x86/
+  // if zzzdoc.exe doesn't live in the same dir, we must be in x86/
   // so look one up the tree.
-  exe = path + "/../qrenderdoc.exe";
+  exe = path + "/../zzzdoc.exe";
 
   f = FileIO::fopen(exe, FileIO::ReadBinary);
   if(f)

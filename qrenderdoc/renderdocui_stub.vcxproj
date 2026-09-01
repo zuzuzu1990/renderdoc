@@ -32,8 +32,8 @@
     <OutputDirectory>$(SolutionDir)$(Platform)\$(Configuration)\</OutputDirectory>
     <SolutionRelativeIntDir>$(Platform)\$(Configuration)\obj\$(ProjectName)\</SolutionRelativeIntDir>
     <CharacterSet>Unicode</CharacterSet>
-    <PrimaryOutput>renderdocui</PrimaryOutput>
-    <TargetName>renderdocui</TargetName>
+    <PrimaryOutput>zzzdocui</PrimaryOutput>
+    <TargetName>zzzdocui</TargetName>
   </PropertyGroup>
   <PropertyGroup>
     <IntDir>$(SolutionDir)$(SolutionRelativeIntDir)</IntDir>
@@ -74,6 +74,7 @@
     </Link>
     <ResourceCompile>
       <AdditionalIncludeDirectories>$(SolutionDir)renderdoc\api\replay</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>ZZZDOC_UI_STUB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
   </ItemDefinitionGroup>
   <ItemGroup>

@@ -729,7 +729,7 @@ public:
 
           ZeroMemory(paramsAlloc, sizeof(wchar_t) * 512);
 
-          _snwprintf_s(paramsAlloc, 511, 511, L"%s/qrenderdoc.exe --crash %s", exepath.c_str(),
+          _snwprintf_s(paramsAlloc, 511, 511, L"%s/zzzdoc.exe --crash %s", exepath.c_str(),
                        destjson.c_str());
 
           PROCESS_INFORMATION pi;
@@ -815,11 +815,11 @@ public:
     wchar_t rdocpath[1024];
 
     // fetch path to our matching renderdoc.dll
-    HMODULE rdoc = GetModuleHandleA("renderdoc.dll");
+    HMODULE rdoc = GetModuleHandleA("zzzdoc.dll");
 
     if(rdoc == NULL)
     {
-      std::cerr << "globalhook couldn't find renderdoc.dll!" << std::endl;
+      std::cerr << "globalhook couldn't find zzzdoc.dll!" << std::endl;
       return 1;
     }
 
@@ -907,7 +907,7 @@ int main(int, char *)
     argv[i] = conv(std::wstring(wargv[i]));
 
   if(argv.empty())
-    argv.push_back("renderdoccmd");
+    argv.push_back("zzzdoccmd");
 
   LocalFree(wargv);
 

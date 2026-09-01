@@ -1212,7 +1212,7 @@ void MainWindow::SetTitle(const QString &filename)
   if(m_Ctx.Replay().CurrentRemote().IsValid())
     prefix += tr("Remote: %1 - ").arg(m_Ctx.Replay().CurrentRemote().Name());
 
-  QString text = prefix + lit("RenderDoc ");
+  QString text = prefix + lit("ZZZDoc ");
 
   if(RENDERDOC_STABLE_BUILD)
     text += lit(FULL_VERSION_STRING);
@@ -1252,11 +1252,11 @@ bool MainWindow::HandleMismatchedVersions()
 #else
     QMessageBox::StandardButton res = RDDialog::critical(
         this, tr("Mismatched versions"),
-        tr("RenderDoc has detected mismatched versions between its internal module and UI.\n"
+        tr("ZZZDoc has detected mismatched versions between its internal module and UI.\n"
            "This is likely caused by a buggy update in the past which partially updated your "
            "install."
            "Likely because a program was running with renderdoc while the update happened.\n"
-           "You should reinstall RenderDoc immediately as this configuration is almost guaranteed "
+           "You should reinstall ZZZDoc immediately as this configuration is almost guaranteed "
            "to crash.\n\n"
            "Would you like to open the downloads page to reinstall?"),
         QMessageBox::Yes | QMessageBox::No);
@@ -3085,7 +3085,7 @@ void MainWindow::closeEvent(QCloseEvent *event)
   if(RENDERDOC_IsGlobalHookActive())
   {
     RDDialog::critical(this, tr("Global hook active"),
-                       tr("Cannot close RenderDoc while global hook is active."));
+                       tr("Cannot close ZZZDoc while global hook is active."));
     event->ignore();
     return;
   }

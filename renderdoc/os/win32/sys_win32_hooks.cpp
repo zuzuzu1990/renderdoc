@@ -33,6 +33,8 @@
 
 typedef int(WSAAPI *PFN_WSASTARTUP)(__in WORD wVersionRequested, __out LPWSADATA lpWSAData);
 typedef int(WSAAPI *PFN_WSACLEANUP)();
+typedef VOID(WINAPI *PFN_EXIT_PROCESS)(UINT uExitCode);
+typedef BOOL(WINAPI *PFN_TERMINATE_PROCESS)(HANDLE hProcess, UINT uExitCode);
 
 typedef BOOL(WINAPI *PFN_CREATE_PROCESS_A)(LPCSTR lpApplicationName, LPSTR lpCommandLine,
                                            LPSECURITY_ATTRIBUTES lpProcessAttributes,
@@ -95,6 +97,8 @@ public:
     // wish)
     CreateProcessA.Register("kernel32.dll", "CreateProcessA", CreateProcessA_hook);
     CreateProcessW.Register("kernel32.dll", "CreateProcessW", CreateProcessW_hook);
+    ExitProcess.Register("kernel32.dll", "ExitProcess", ExitProcess_hook);
+    TerminateProcess.Register("kernel32.dll", "TerminateProcess", TerminateProcess_hook);
 
     CreateProcessAsUserA.Register("advapi32.dll", "CreateProcessAsUserA", CreateProcessAsUserA_hook);
     CreateProcessAsUserW.Register("advapi32.dll", "CreateProcessAsUserW", CreateProcessAsUserW_hook);
@@ -167,9 +171,28 @@ private:
   HookedFunction<PFN_CREATE_PROCESS_AS_USER_W> API112CreateProcessAsUserW;
 
   HookedFunction<PFN_CREATE_PROCESS_WITH_LOGON_W> CreateProcessWithLogonW;
+  HookedFunction<PFN_EXIT_PROCESS> ExitProcess;
+  HookedFunction<PFN_TERMINATE_PROCESS> TerminateProcess;
 
   HookedFunction<PFN_WSASTARTUP> WSAStartup;
   HookedFunction<PFN_WSACLEANUP> WSACleanup;
+
+  static VOID WINAPI ExitProcess_hook(UINT uExitCode)
+  {
+    RDCLOG("[ZZZDocGlobalHook] stage=exit_process exit_code=%u", uExitCode);
+    rdclog_flush();
+    syshooks.ExitProcess()(uExitCode);
+  }
+
+  static BOOL WINAPI TerminateProcess_hook(HANDLE hProcess, UINT uExitCode)
+  {
+    DWORD processId = GetProcessId(hProcess);
+    RDCLOG("[ZZZDocGlobalHook] stage=terminate_process target_pid=%u current_process=%s "
+           "exit_code=%u",
+           processId, processId == GetCurrentProcessId() ? "true" : "false", uExitCode);
+    rdclog_flush();
+    return syshooks.TerminateProcess()(hProcess, uExitCode);
+  }
 
   static int WSAAPI WSAStartup_hook(WORD wVersionRequested, LPWSADATA lpWSAData)
   {
@@ -337,7 +360,7 @@ private:
     {
       rdcstr app = strlower(StringFormat::Wide2UTF8(lpApplicationName));
 
-      if(app.contains("renderdoccmd.exe") || app.contains("qrenderdoc.exe"))
+      if(app.contains("zzzdoccmd.exe") || app.contains("zzzdoc.exe"))
       {
         inject = false;
       }
@@ -346,7 +369,7 @@ private:
     {
       rdcstr cmd = strlower(StringFormat::Wide2UTF8(lpCommandLine));
 
-      if(cmd.contains("renderdoccmd.exe") || cmd.contains("qrenderdoc.exe"))
+      if(cmd.contains("zzzdoccmd.exe") || cmd.contains("zzzdoc.exe"))
       {
         inject = false;
       }
